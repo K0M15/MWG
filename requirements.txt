@@ -1,0 +1,7 @@
+markdown
+jinja2
+watchdog
+pygments
+pyyaml
+minify-html
+csscompressor
