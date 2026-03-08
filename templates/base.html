@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "My Site" }}</title>
+    <link rel="stylesheet" href="/static/themes/{{ theme }}/style.css">
+</head>
+<body class="theme-{{ theme }}">
+    <header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about/">About</a>
+            <a href="/blog/">Blog</a>
+        </nav>
+    </header>
+    <main>
+        {% block content %}
+        {{ content }}
+        {% endblock %}
+    </main>
+    <footer>
+        <p>&copy; 2024 Markdown Site Generator</p>
+    </footer>
+</body>
+</html>

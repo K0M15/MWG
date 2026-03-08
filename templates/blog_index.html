@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+    {{ content }}
+
+    {% if pagination %}
+    <nav class="pagination">
+        {% if pagination.prev %}
+            <a href="{{ pagination.prev }}">&laquo; Newer Posts</a>
+        {% endif %}
+        <span class="page-info">Page {{ pagination.current }} of {{ pagination.total }}</span>
+        {% if pagination.next %}
+            <a href="{{ pagination.next }}">Older Posts &raquo;</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+{% endblock %}

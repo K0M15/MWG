@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+    <article class="blog-post">
+        <header>
+            <h1>{{ title }}</h1>
+            <p class="post-meta">Published on {{ meta.date.strftime('%Y-%m-%d') }} by {{ meta.author }}</p>
+        </header>
+        <div class="post-content">
+            {{ content }}
+        </div>
+    </article>
+{% endblock %}
