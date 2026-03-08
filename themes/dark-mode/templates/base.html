@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title or "My Site" }}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>{{ title or "Dark Mode" }}</title>
+    <link rel="stylesheet" href="/static/{{ theme }}/style.css">
 </head>
-<body>
+<body class="dark-theme">
     <header>
         <nav>
             <a href="/">Home</a>
@@ -28,21 +28,9 @@
         {% else %}
             {{ content }}
         {% endif %}
-
-        {% if pagination %}
-        <nav class="pagination">
-            {% if pagination.prev %}
-                <a href="{{ pagination.prev }}">&laquo; Newer Posts</a>
-            {% endif %}
-            <span class="page-info">Page {{ pagination.current }} of {{ pagination.total }}</span>
-            {% if pagination.next %}
-                <a href="{{ pagination.next }}">Older Posts &raquo;</a>
-            {% endif %}
-        </nav>
-        {% endif %}
     </main>
     <footer>
-        <p>&copy; 2024 Markdown Site Generator</p>
+        <p>&copy; 2024 Markdown Site (Dark Mode)</p>
     </footer>
 </body>
 </html>
