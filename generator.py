@@ -17,8 +17,7 @@ from watchdog.events import FileSystemEventHandler
 
 # Configuration
 CONTENT_DIR = 'content'
-TEMPLATES_DIR = 'templates'
-STATIC_DIR = 'static'
+THEMES_DIR = 'themes'
 BASE_TEMPLATE = 'base.html'
 
 def get_meta(md_instance, key, default=None):
@@ -26,30 +25,84 @@ def get_meta(md_instance, key, default=None):
         return md_instance.Meta[key][0]
     return default
 
-def generate_site(output_dir='dist', minify=False):
-    env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
-    template = env.get_template(BASE_TEMPLATE)
+class ThemeManager:
+    def __init__(self):
+        self.envs = {}
+
+    def get_template(self, theme):
+        if theme not in self.envs:
+            theme_path = os.path.join(THEMES_DIR, theme, 'templates')
+            if not os.path.exists(theme_path):
+                theme_path = os.path.join(THEMES_DIR, 'default', 'templates')
+                theme = 'default'
+            self.envs[theme] = Environment(loader=FileSystemLoader(theme_path))
+        
+        return self.envs[theme].get_template(BASE_TEMPLATE), theme
+
+def resolve_config(path, root_dir):
+    """Recursively resolve configuration by looking for .md-server files from current folder up to root."""
+    config = {'sitemap': True} # Default sitemap to True
+    parts = os.path.relpath(path, root_dir).split(os.sep)
+    if parts == ['.']:
+        parts = []
+    
+    current_check = root_dir
+    for part in [""] + parts:
+        current_check = os.path.join(current_check, part)
+        config_file = os.path.join(current_check, '.md-server')
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                new_config = yaml.safe_load(f) or {}
+                config.update(new_config)
+    return config
+
+def generate_sitemap(output_dir, urls):
+    if not urls:
+        return
+    
+    now = datetime.now().strftime('%Y-%m-%d')
+    sitemap_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    sitemap_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    
+    for url in sorted(urls):
+        sitemap_content += f'  <url>\n    <loc>{url}</loc>\n    <lastmod>{now}</lastmod>\n  </url>\n'
+    
+    sitemap_content += '</urlset>'
+    
+    with open(os.path.join(output_dir, 'sitemap.xml'), 'w', encoding='utf-8') as f:
+        f.write(sitemap_content)
+    print(f"Generated sitemap.xml with {len(urls)} URLs")
+
+def generate_site(output_dir='dist', minify=False, default_theme='default'):
+    theme_manager = ThemeManager()
+    sitemap_urls = []
 
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
 
-    # First pass: identify blog folders
+    # First pass: identify blog folders and themes
     blog_configs = {}
+    used_themes = set()
+    used_themes.add(default_theme)
+
     for root, dirs, files in os.walk(CONTENT_DIR):
-        if '.md-server' in files:
-            config_path = os.path.join(root, '.md-server')
-            with open(config_path, 'r') as f:
-                config = yaml.safe_load(f) or {}
-                if config.get('type') == 'blog':
-                    rel_root = os.path.relpath(root, CONTENT_DIR)
-                    blog_configs[rel_root] = config
+        config = resolve_config(root, CONTENT_DIR)
+        theme = config.get('theme', default_theme)
+        used_themes.add(theme)
+        
+        if config.get('type') == 'blog':
+            rel_root = os.path.relpath(root, CONTENT_DIR)
+            blog_configs[rel_root] = config
 
     all_posts = {} # rel_root -> list of post metadata and content
 
     # Second pass: Process all files
     for root, dirs, files in os.walk(CONTENT_DIR):
         rel_root = os.path.relpath(root, CONTENT_DIR)
+        config = resolve_config(root, CONTENT_DIR)
+        theme_name = config.get('theme', default_theme)
+        show_in_sitemap = config.get('sitemap', True)
         
         blog_root = None
         for br in blog_configs:
@@ -74,10 +127,13 @@ def generate_site(output_dir='dist', minify=False):
                 
                 os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
 
+                if show_in_sitemap:
+                    sitemap_urls.append(url)
+
                 with open(md_path, 'r', encoding='utf-8') as f:
                     content_md = f.read()
                 
-                md = markdown.Markdown(extensions=['extra', 'toc', 'codehilite', 'meta', 'sane_lists'])
+                md = markdown.Markdown(extensions=['extra', 'toc', 'codehilite', 'meta', 'sane_lists', 'markdown_checklist.extension'])
                 html_body = md.convert(content_md)
                 
                 title = get_meta(md, 'title', name_without_ext.replace('-', ' ').title())
@@ -106,11 +162,13 @@ def generate_site(output_dir='dist', minify=False):
                         all_posts[blog_root] = []
                     all_posts[blog_root].append(post_meta)
 
+                template, resolved_theme = theme_manager.get_template(theme_name)
                 html_output = template.render(
                     content=html_body,
                     title=title,
                     meta=post_meta,
-                    is_blog_post=is_blog
+                    is_blog_post=is_blog,
+                    theme=resolved_theme
                 )
 
                 if minify:
@@ -119,7 +177,7 @@ def generate_site(output_dir='dist', minify=False):
                 with open(output_file_path, 'w', encoding='utf-8') as f:
                     f.write(html_output)
                 
-                print(f"Generated: {output_file_path}")
+                print(f"Generated: {output_file_path} (Theme: {resolved_theme})")
 
     # Third pass: Generate Paginated Blog Indices
     for rel_root, config in blog_configs.items():
@@ -129,6 +187,10 @@ def generate_site(output_dir='dist', minify=False):
         ppp = config.get('posts_per_page', 5)
         total_pages = math.ceil(len(posts) / ppp) or 1
         
+        theme_name = config.get('theme', default_theme)
+        template, resolved_theme = theme_manager.get_template(theme_name)
+        show_in_sitemap = config.get('sitemap', True)
+
         for i in range(total_pages):
             page_num = i + 1
             start = i * ppp
@@ -151,6 +213,12 @@ def generate_site(output_dir='dist', minify=False):
                     pagination['prev'] = base_blog_url
                 else:
                     pagination['prev'] = f"{base_blog_url}page/{page_num - 1}/"
+
+            if show_in_sitemap:
+                if page_num == 1:
+                    sitemap_urls.append(base_blog_url)
+                else:
+                    sitemap_urls.append(f"{base_blog_url}page/{page_num}/")
 
             page_html = ""
             for p in page_posts:
@@ -177,7 +245,8 @@ def generate_site(output_dir='dist', minify=False):
             html_output = template.render(
                 content=page_html,
                 title=f"{rel_root.title()} - Page {page_num}",
-                pagination=pagination
+                pagination=pagination,
+                theme=resolved_theme
             )
             
             if minify:
@@ -185,30 +254,35 @@ def generate_site(output_dir='dist', minify=False):
             
             with open(output_index_path, 'w', encoding='utf-8') as f:
                 f.write(html_output)
-            print(f"Generated Blog Index: {output_index_path}")
+            print(f"Generated Blog Index: {output_index_path} (Theme: {resolved_theme})")
 
-    # Copy and minify static assets
-    if os.path.exists(STATIC_DIR):
-        target_static = os.path.join(output_dir, 'static')
-        shutil.copytree(STATIC_DIR, target_static)
-        
-        if minify:
-            for root, dirs, files in os.walk(target_static):
-                for file in files:
-                    if file.endswith('.css'):
-                        path = os.path.join(root, file)
-                        with open(path, 'r') as f:
-                            minified = compress(f.read())
-                        with open(path, 'w') as f:
-                            f.write(minified)
-                        print(f"Minified CSS: {path}")
+    # Generate sitemap if enabled at root
+    root_config = resolve_config(CONTENT_DIR, CONTENT_DIR)
+    if root_config.get('sitemap', True):
+        generate_sitemap(output_dir, sitemap_urls)
 
-        print(f"Copied {STATIC_DIR} to {output_dir}/static")
+    # Copy and minify static assets for all used themes
+    for theme in used_themes:
+        theme_static = os.path.join(THEMES_DIR, theme, 'static')
+        if os.path.exists(theme_static):
+            target_static = os.path.join(output_dir, 'static', theme)
+            shutil.copytree(theme_static, target_static)
+            
+            if minify:
+                for root, dirs, files in os.walk(target_static):
+                    for file in files:
+                        if file.endswith('.css'):
+                            path = os.path.join(root, file)
+                            with open(path, 'r') as f:
+                                minified = compress(f.read())
+                            with open(path, 'w') as f:
+                                f.write(minified)
+            print(f"Copied static assets for theme: {theme}")
 
 def find_available_port(start_port=8000):
     port = start_port
     while port < start_port + 100:
-        with socket.socket(socket.socket.AF_INET, socket.SOCK_STREAM) as s:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(('', port)) != 0:
                 return port
         port += 1
@@ -224,7 +298,7 @@ import socket
 def find_available_port(start_port=8000):
     port = start_port
     while port < start_port + 100:
-        with socket.socket(socket.socket.AF_INET, socket.SOCK_STREAM) as s:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(('', port)) != 0:
                 return port
         port += 1
@@ -247,17 +321,20 @@ if __name__ == "__main__":
     print(f"Created {output_dir}/server.py for deployment.")
 
 class ChangeHandler(FileSystemEventHandler):
+    def __init__(self, default_theme):
+        self.default_theme = default_theme
     def on_any_event(self, event):
         if event.is_directory:
             return
         if any(event.src_path.endswith(ext) for ext in ['.md', '.html', '.css', '.md-server']):
             print(f"Change detected: {event.src_path}. Regenerating...")
-            generate_site('dist')
+            generate_site('dist', default_theme=self.default_theme)
 
 def serve_dev(directory, port=8000):
-    os.chdir(directory)
-    handler = http.server.SimpleHTTPRequestHandler
-    with http.server.HTTPServer(("", port), handler) as httpd:
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=directory, **kwargs)
+    with http.server.HTTPServer(("", port), Handler) as httpd:
         print(f"Dev server running at http://localhost:{port}")
         httpd.serve_forever()
 
@@ -265,25 +342,25 @@ def main():
     parser = argparse.ArgumentParser(description='Markdown Website Generator')
     parser.add_argument('-dev', action='store_true', help='Development mode with hot-reloading')
     parser.add_argument('-build', action='store_true', help='Build for deployment in /build with minification')
+    parser.add_argument('--theme', default='default', help='Global default theme (default: "default")')
     args = parser.parse_args()
 
     if args.build:
-        print("Building site for deployment with minification...")
-        generate_site('build', minify=True)
+        print(f"Building site for deployment with default theme '{args.theme}'...")
+        generate_site('build', minify=True, default_theme=args.theme)
         create_build_server('build')
     elif args.dev:
-        print("Starting development mode...")
-        generate_site('dist', minify=False)
+        print(f"Starting development mode with default theme '{args.theme}'...")
+        generate_site('dist', minify=False, default_theme=args.theme)
         
         port = find_available_port(8000)
         server_thread = threading.Thread(target=serve_dev, args=('dist', port), daemon=True)
         server_thread.start()
 
-        event_handler = ChangeHandler()
+        event_handler = ChangeHandler(args.theme)
         observer = Observer()
-        for d in [CONTENT_DIR, TEMPLATES_DIR, STATIC_DIR]:
-            if os.path.exists(d):
-                observer.schedule(event_handler, d, recursive=True)
+        observer.schedule(event_handler, CONTENT_DIR, recursive=True)
+        observer.schedule(event_handler, THEMES_DIR, recursive=True)
         
         observer.start()
         try:
@@ -293,7 +370,7 @@ def main():
             observer.stop()
         observer.join()
     else:
-        generate_site('dist')
+        generate_site('dist', default_theme=args.theme)
 
 if __name__ == "__main__":
     main()

@@ -32,6 +32,34 @@ pre {
     background-color: #272729;
 }
 
+/* Task lists */
+.checklist li {
+    list-style-type: none;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+.checklist li input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.5rem;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+}
+
+.checklist li input[type="checkbox"]:checked::before {
+    content: "✔";
+}
+
+.checklist li input[type="checkbox"]:not(:checked)::before {
+    content: "✕";
+}
+
 .post-meta {
     color: #818384;
 }
