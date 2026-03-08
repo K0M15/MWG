@@ -1,0 +1,95 @@
+body {
+    background-color: #000;
+    color: #00ff41; /* Matrix green */
+    font-family: 'Courier New', Courier, monospace;
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-shadow: 0 0 5px #00ff41;
+}
+
+header {
+    border-bottom: 2px solid #00ff41;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+}
+
+nav a {
+    margin-right: 1.5rem;
+    text-decoration: none;
+    color: #00ff41;
+    font-weight: bold;
+    text-transform: uppercase;
+    border: 1px solid #00ff41;
+    padding: 0.3rem 0.6rem;
+}
+
+nav a:hover {
+    background-color: #00ff41;
+    color: #000;
+}
+
+h1, h2, h3 {
+    color: #0d0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid #00ff41;
+}
+
+table th, table td {
+    border: 1px solid #00ff41;
+    padding: 10px;
+}
+
+code {
+    background-color: #001a00;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid #00ff41;
+    color: #00ff41;
+}
+
+pre {
+    background-color: #001a00;
+    padding: 1rem;
+    border: 1px dashed #00ff41;
+    overflow: auto;
+}
+
+.post-meta {
+    font-size: 0.9rem;
+    color: #008f11;
+    margin-bottom: 2rem;
+}
+
+.pagination a {
+    color: #00ff41;
+    border: 1px solid #00ff41;
+    padding: 0.5rem;
+}
+
+/* Task lists */
+.checklist li input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.5rem;
+    border: 1px solid #00ff41;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checklist li input[type="checkbox"]:checked::before {
+    content: "Ø";
+}
+
+.checklist li input[type="checkbox"]:not(:checked)::before {
+    content: " ";
+}

@@ -91,8 +91,11 @@ The generator strictly separates **Templates** (HTML structure) from **Themes** 
 
 ### Themes
 Themes are stored in `static/themes/<theme-name>/style.css`.
-- Select globally: `--theme dark-mode`
-- Select per folder in `.md-server`: `theme: dark-mode`
+Available themes:
+- `default`: Clean and simple light theme.
+- `dark-mode`: Dark gray modern theme.
+- `matrix`: Classic black & green hacker aesthetic.
+- `colorful`: Vibrant, playful, and colorful.
 
 ### Templates
 Templates are stored in the `templates/` directory as `.html` files.
