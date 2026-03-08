@@ -1,3 +1,4 @@
 type: blog
 posts_per_page: 1
 show_author: true
+theme: default
